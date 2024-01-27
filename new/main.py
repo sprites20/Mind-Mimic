@@ -149,6 +149,8 @@ Write to
 import random
 import math
 import pandas as pd
+from itertools import groupby
+factor_array_list = []
 
 def generate_random_array(n):
     return [random.randint(1, 255) for _ in range(n)]
@@ -162,6 +164,7 @@ def calculate_frequencies(arr):
 class FactorArray:
     def __init__(self, n):
         self.n = n
+        self.minbit = calculate_minbits(n)
         self.factorable_numbers = []
         self.quotients = []
         self.minbits = []
@@ -176,7 +179,7 @@ class FactorArray:
         print(len(self.factorable_numbers), len(self.minbits), len(self.freq))
         for i in range(len(self.factorable_numbers)):
             # Calculate the bit reduction value using the formula and append it to bit_reduction
-            reduction_value = (8 - self.minbits[i]) * self.freq[i]
+            reduction_value = (8 - self.minbits[i]) * self.freq[i] - self.freq[i]
             self.bit_reduction.append(reduction_value)
                 
     def create_factor_array(self):
@@ -195,6 +198,7 @@ class FactorArray:
         data = {
             "bit_reduction" : self.bit_reduction,
             "freq": self.freq,
+            "multiplier": [1] * len(self.factorable_numbers),
             "minbits": self.minbits,
             "factorable_numbers": self.factorable_numbers,
             "factors": [self.n] * len(self.factorable_numbers),
@@ -203,20 +207,154 @@ class FactorArray:
         # Check if all required keys exist in the data dictionary
 
        # Check if all required keys exist in the data dictionary
-        required_keys = ['bit_reduction', 'freq', 'minbits', 'factorable_numbers']
+        required_keys = ['bit_reduction', 'freq', 'multiplier', 'minbits', 'factorable_numbers']
+        sorted_data = {}
         if all(key in data for key in required_keys):
             # Create a dictionary from the zipped key-value pairs
-            sorted_data = dict(zip(data['factorable_numbers'], zip(data['bit_reduction'], data['freq'], data['minbits'], data['factors'])))
+            sorted_data = dict(sorted(zip(data['factorable_numbers'], zip(data['bit_reduction'], data['freq'], data["multiplier"], data['minbits'], data['factors'])), key=lambda x: x[1][1], reverse=True))
+            # Sort the dictionary by the 'freq' value
+
             print()
             # Print the sorted dictionary
             print(sorted_data)
         else:
             print("One or more required keys are missing in the data dictionary.")
+        
         somesum = 0
         for i in sorted_data.values():
             somesum += i[0]
         print(somesum)
         
+        self.increase_bit_reduction(sorted_data)
+        
+    def increase_bit_reduction(self, data):
+        # Create an iterator for the dictionary items
+        iterator = iter(data.items())
+        # Skip the first item
+        #next(iterator, None)
+        # Iterate over the remaining items
+        print("Reducing Values")
+        for k, v in iterator:
+            #print(f"Key: {k}, Value: {v}")
+            facts = factor_array_list[k-1].factorable_numbers
+            #print(facts)
+            iterator2 = iter(facts)
+            #next(iterator2, None)
+            
+            for i in iterator2:
+                #print(i, data[i], factor_array_list[int(i/k)-1].minbit)
+                #reduction_value = (8 - self.minbits[i]) * self.freq[i]
+                try:
+                    minbit = calculate_minbits(i//k-1)
+                    #print(factor_array_list[int(i/k)-1].minbit)
+                    freq = data[i][1]
+                    temp = ((8 - minbit) * freq + freq, freq, data[i][2], minbit, k)
+                    if data[i][0] < temp[0]:
+                        data[i] = temp
+                    #print(i, data[i])
+                except Exception as e:
+                    print(e, "Not found")
+                    pass
+        # Assuming you have already created the sorted_data dictionary as shown in your code
+
+        # Group the data by the 'factors' value
+        grouped_data = {}
+        for key, value in data.items():
+            factor = value[-1]  # Assuming the factor is the last element of the tuple
+            if factor not in grouped_data:
+                grouped_data[factor] = []
+            grouped_data[factor].append((key, value))
+
+        # Sort within each group based on the 'freq' value
+        for factor, group in grouped_data.items():
+            grouped_data[factor] = dict(sorted(group, key=lambda x: x[1][1], reverse=True))
+
+        # Sort the groups based on the sum of the 'freq' values
+        sorted_groups = sorted(grouped_data.items(), key=lambda x: sum(v[1] for _, v in x[1].items()), reverse=True)
+
+        # Print the sorted groups
+        i = 0
+        new_data = {}
+        for factor, sorted_group in sorted_groups:
+            i += 1
+            for key, value in sorted_group.items():
+                #print(sorted_group[key])
+                minbit = calculate_minbits(key//factor-1)
+                #print(factor_array_list[int(i/k)-1].minbit)
+                freq = value[1]
+                #print(freq)
+                #print(minbit)
+                temp = ((8 - minbit) * freq - freq * i, freq, i, minbit, factor)
+                #print(i)
+                sorted_group[key] = temp
+                #print(sorted_group[key])
+                new_data[key] = sorted_group[key]
+                print(f"\tKey: {key}, Value: {sorted_group[key]}")
+            somesum = sum(new_data[key][0] for _, v in sorted_group.items())
+            print(f"{i}, Factor: {factor}, Sum of freq: {somesum}")
+        
+        self.reduce_2(new_data)
+        
+    def reduce_2(self, data):
+        new_data = {}
+        last_factor = 420
+        current_minbit = 4
+        mult = 1
+        total_somesum = 0  # Initialize total somesum
+
+        for k, v in data.items():
+            facts = factor_array_list[v[-1] - 1].factorable_numbers
+            if v[-1] == last_factor:
+                mult += 1
+                continue
+            last_factor = v[-1]
+
+            for i in facts:
+                try:
+                    minbit = calculate_minbits(i // last_factor - 1)
+                    if minbit > current_minbit:
+                        break
+                    freq = data[i][1]
+                    temp = ((8 - minbit) * freq - freq ** (1 / (4 * math.log(mult, 4)))), freq, mult, data[i][2], minbit, last_factor
+
+                    if data[i][0] < temp[0]:
+                        data[i] = temp
+                        new_data[i] = temp
+                except Exception as e:
+                    print(f"Error: {e}")
+                    pass
+
+        grouped_data = {}
+        for key, value in data.items():
+            factor = value[-1]
+            if factor not in grouped_data:
+                grouped_data[factor] = []
+            grouped_data[factor].append((key, value))
+
+        for factor, group in grouped_data.items():
+            grouped_data[factor] = dict(sorted(group, key=lambda x: x[1][1], reverse=True))
+
+        sorted_groups = sorted(grouped_data.items(), key=lambda x: sum(v[1] for _, v in x[1].items()), reverse=True)
+
+        for i, (factor, sorted_group) in enumerate(sorted_groups, start=1):
+            sorted_group = dict(sorted(sorted_group.items(), key=lambda x: x[1][1], reverse=True))  # Sort within each group by freq
+            for key, value in sorted_group.items():
+                minbit = calculate_minbits(key // factor - 1)
+                freq = value[1]
+                temp = ((8 - minbit) * freq - freq ** (1 / (4 * math.log(mult, 4)))), freq, i, minbit, factor
+                sorted_group[key] = temp
+                new_data[key] = temp
+
+                # Accumulate somesum in total_somesum
+                total_somesum += new_data[key][0]
+
+                print(f"\tKey: {key}, Value: {sorted_group[key]}")
+
+            print(f"{i}, Factor: {factor}, Sum of freq: {sum(v[1] for _, v in sorted_group.items())}")
+
+        print(f"Total somesum: {total_somesum}")  # Print total somesum
+            
+            
     def get_factor_array_info(self):
         info = {
             "Size": len(self.factorable_numbers),
@@ -253,7 +391,7 @@ def calculate_minbits(num):
     return minbits
 
 def fill_frequency(factor_array_list, sorted_frequencies):
-    for i in range(3, 256):
+    for i in range(2, 256):
         print("i", i)
         print(factor_array_list[i-2].factorable_numbers)
         for j in factor_array_list[i-2].factorable_numbers:
@@ -286,14 +424,15 @@ def calculate_factors(number):
     
 def main():
     # Usage
-    factor_array_list = []
     for n in range(1, 256):
         factor_array = FactorArray(n)
         factor_array.create_factor_array()
         factor_array_list.append(factor_array)
 
-    n = 10000  # Example size of the random array
+    n = 1000  # Example size of the random array
     random_array = generate_random_array(n)
+    with open('main.py', 'rb') as file:
+        random_array = file.read()
     frequencies = calculate_frequencies(random_array)
 
     # Create a list of tuples (number, frequency) and sort it based on frequency in descending order
@@ -324,15 +463,16 @@ def main():
     print("Bit Reduced!")
     print(factor_array_list[1].get_factor_array_info())
     sorted_factor_array_list = []
-    some_i = 1
+    some_i = 100
     for factor, frequency in sorted_factor_frequencies:
         try:
             #print(factor)
             sorted_factor_array_list.append(factor_array_list[factor])
+            print(factor_array_list[factor].n)
         except:
             pass
     print(sorted_factor_array_list[1].get_factor_array_info())
-    sorted_factor_array_list[1].sort_properties()
+    factor_array_list[0].sort_properties()
     
 if __name__ == "__main__":
     main()
