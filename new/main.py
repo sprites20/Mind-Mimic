@@ -102,9 +102,22 @@ From front, 101000011000001... etc.
 1010000110000011000001100011111000011110000010000100010011110100001100000110000011000111110000111100000100001000100111
 Partitioned 0s? 1
 Now:
-01101000011000000110100001100000 (Ignore)
+011010000110100000011010000110100000 (Ignore)
+Partitioned 1s? 0
+None
+(Example:
+Orig:
+111100111100111100001111101111
+Virtual:
+1111011110111101111101111
+
+Next:
+111101
+Header: 0s c
+)
 Partitioned 0s? 1 (Happens twice)
-Now: 001100000110
+Now: 001010001010
+Partitioned 1s? 0
 Partitioned 0s? 0
 Partitioned 1s? 0
 
@@ -150,7 +163,13 @@ import random
 import math
 import pandas as pd
 from itertools import groupby
+import os
+import matplotlib.pyplot as plt
+
 factor_array_list = []
+location_mask = []
+filename = 'main.py'
+factor_sequence = [0]
 
 def generate_random_array(n):
     return [random.randint(1, 255) for _ in range(n)]
@@ -175,8 +194,8 @@ class FactorArray:
     
     def get_bit_reduction(self):
     #self.bit_reduction = []  # Initialize bit_reduction as an empty list
-        print("Sizes")
-        print(len(self.factorable_numbers), len(self.minbits), len(self.freq))
+        #print("Sizes")
+        #print(len(self.factorable_numbers), len(self.minbits), len(self.freq))
         for i in range(len(self.factorable_numbers)):
             # Calculate the bit reduction value using the formula and append it to bit_reduction
             reduction_value = (8 - self.minbits[i]) * self.freq[i] - self.freq[i]
@@ -214,9 +233,9 @@ class FactorArray:
             sorted_data = dict(sorted(zip(data['factorable_numbers'], zip(data['bit_reduction'], data['freq'], data["multiplier"], data['minbits'], data['factors'])), key=lambda x: x[1][1], reverse=True))
             # Sort the dictionary by the 'freq' value
 
-            print()
+            #print()
             # Print the sorted dictionary
-            print(sorted_data)
+            #print(sorted_data)
         else:
             print("One or more required keys are missing in the data dictionary.")
         
@@ -225,7 +244,7 @@ class FactorArray:
             somesum += i[0]
         print(somesum)
         
-        self.increase_bit_reduction(sorted_data)
+        return self.increase_bit_reduction(sorted_data)
         
     def increase_bit_reduction(self, data):
         # Create an iterator for the dictionary items
@@ -289,19 +308,19 @@ class FactorArray:
                 sorted_group[key] = temp
                 #print(sorted_group[key])
                 new_data[key] = sorted_group[key]
-                print(f"\tKey: {key}, Value: {sorted_group[key]}")
+                #print(f"\tKey: {key}, Value: {sorted_group[key]}")
             somesum = sum(new_data[key][0] for _, v in sorted_group.items())
-            print(f"{i}, Factor: {factor}, Sum of freq: {somesum}")
+            #print(f"{i}, Factor: {factor}, Sum of freq: {somesum}")
         
-        self.reduce_2(new_data)
+        return self.reduce_2(new_data)
         
     def reduce_2(self, data):
         new_data = {}
         last_factor = 420
-        current_minbit = 4
+        current_minbit = 1
         mult = 1
         total_somesum = 0  # Initialize total somesum
-
+        total_freq = 0
         for k, v in data.items():
             facts = factor_array_list[v[-1] - 1].factorable_numbers
             if v[-1] == last_factor:
@@ -346,13 +365,37 @@ class FactorArray:
                 new_data[key] = temp
 
                 # Accumulate somesum in total_somesum
+                #total_somesum += new_data[key][0]
+
+                #print(f"\tKey: {key}, Value: {sorted_group[key]}")
+        
+            
+            #print()
+            #print()
+                # Find the maximum minbit value within the group
+            # Calculate the maximum minbit value for the entire group
+            max_minbit = max(value[3] for _, value in sorted_group.items() if value[1] != 0)
+            #print(max_minbit)
+            # Update all elements in the group with the maximum minbit value
+            for key, value in sorted_group.items():
+                freq = value[1]
+                temp = ((8 - max_minbit) * freq - freq ** (1 / (4 * math.log(mult, 4)))), freq, i, max_minbit, factor
+                sorted_group[key] = temp
+                new_data[key] = temp
+                location_mask[key] = value[4]
+                # Accumulate somesum in total_somesum
                 total_somesum += new_data[key][0]
-
-                print(f"\tKey: {key}, Value: {sorted_group[key]}")
-
+                total_freq += freq
+                if value[1] != 0:
+                    print(f"\tKey: {key}, Value: {sorted_group[key]}")
+                
+            
             print(f"{i}, Factor: {factor}, Sum of freq: {sum(v[1] for _, v in sorted_group.items())}")
-
-        print(f"Total somesum: {total_somesum}")  # Print total somesum
+            factor_sequence.append(factor)
+            print(f"Total somesum: {total_somesum}")  # Print total somesum
+            print(f"Total frequency: {total_freq}")  # Print total somesum
+        
+        return total_somesum
             
             
     def get_factor_array_info(self):
@@ -392,14 +435,14 @@ def calculate_minbits(num):
 
 def fill_frequency(factor_array_list, sorted_frequencies):
     for i in range(2, 256):
-        print("i", i)
-        print(factor_array_list[i-2].factorable_numbers)
+        #print("i", i)
+        #print(factor_array_list[i-2].factorable_numbers)
         for j in factor_array_list[i-2].factorable_numbers:
             for k, frequency in sorted_frequencies:
                 if k == j:
-                    print("i", i, "j", j, k, frequency)
+                    #print("i", i, "j", j, k, frequency)
                     factor_array_list[i-2].freq[int(j/(i - 1))-1] = frequency
-                    print(factor_array_list[i-2].factorable_numbers[int(j/(i - 1))-1], factor_array_list[i-2].freq[int(j/(i - 1))-1])
+                    #print(factor_array_list[i-2].factorable_numbers[int(j/(i - 1))-1], factor_array_list[i-2].freq[int(j/(i - 1))-1])
         #print(factor_array_list[i].freq)
         #factor_array.freq = frequencies
 
@@ -421,47 +464,43 @@ def calculate_factors(number):
             factors.add(i)
             factors.add(number // i)
     return factors
+
+
+def delta_encode(arr):
+    if not arr:
+        return []
+
+    delta_arr = [arr[0]]  # The first element remains unchanged
+    for i in range(1, len(arr)):
+        delta = abs(arr[i] - arr[i - 1])  # Calculate absolute difference
+        delta_arr.append(delta)
+    return delta_arr
+
+def compute(random_array):
+    new_loc = []
+
+    for i in random_array:
+        new_loc.append(location_mask[i])
+    #new_loc = delta_encode(new_loc)
+    frequencies = calculate_frequencies(new_loc)
     
-def main():
-    # Usage
-    for n in range(1, 256):
-        factor_array = FactorArray(n)
-        factor_array.create_factor_array()
-        factor_array_list.append(factor_array)
-
-    n = 1000  # Example size of the random array
-    random_array = generate_random_array(n)
-    with open('main.py', 'rb') as file:
-        random_array = file.read()
-    frequencies = calculate_frequencies(random_array)
-
     # Create a list of tuples (number, frequency) and sort it based on frequency in descending order
     sorted_frequencies = sorted(enumerate(frequencies), key=lambda x: x[1], reverse=True)
-
+    
     fill_frequency(factor_array_list, sorted_frequencies)
 
-    # Print the frequencies in the factor arrays
-    for factor_array in factor_array_list:
-        print()
-        print(factor_array.factorable_numbers)
-        print(factor_array.freq)
-    print(sorted_frequencies)
-    
-    factor_frequencies = calculate_factor_frequencies(random_array)
+
+    factor_frequencies = calculate_factor_frequencies(new_loc)
 
     # Sort the factor frequencies dictionary by value (frequency) in descending order
     sorted_factor_frequencies = sorted(factor_frequencies.items(), key=lambda x: x[1], reverse=True)
-    """
-        # Print the sorted factor frequency table
-    for factor, frequency in sorted_factor_frequencies:
-        print(f"Factor {factor}: {frequency} times")
-    """
+
     print(sorted_factor_frequencies)
     
     for factor_array in factor_array_list:
         factor_array.get_bit_reduction()
     print("Bit Reduced!")
-    print(factor_array_list[1].get_factor_array_info())
+    #print(factor_array_list[1].get_factor_array_info())
     sorted_factor_array_list = []
     some_i = 100
     for factor, frequency in sorted_factor_frequencies:
@@ -471,9 +510,316 @@ def main():
             print(factor_array_list[factor].n)
         except:
             pass
-    print(sorted_factor_array_list[1].get_factor_array_info())
-    factor_array_list[0].sort_properties()
+    #print(sorted_factor_array_list[1].get_factor_array_info())
     
+    # Get the size in bytes of the original file
+    
+    
+    file_size = os.path.getsize(filename) #
+    #file_size = 256*8#os.path.getsize(filename) #
+    cmp_size = file_size - (factor_array_list[0].sort_properties()/8)
+    print(f"Original File Size: {file_size} bytes")
+    print(f"Compressed File Size: {cmp_size} bytes")
+    print(f"Compression Multiple: {file_size/cmp_size}x")
+    return new_loc
+
+def count_state_changes(arr):
+    current_state = None
+    count = 0
+    result = []
+
+    for num in arr:
+        if current_state is None:  # Initialize current_state on the first element
+            current_state = num
+        
+        if num == current_state:
+            count += 1
+        else:
+            result.append(count)
+            count = 1  # Start counting the new state
+            current_state = num
+    
+    result.append(count)  # Append the count of the last state
+    return result
+   
+def count_frequencies(arr):
+    frequency_dict = {}
+    for element in arr:
+        if element in frequency_dict:
+            frequency_dict[element] += 1
+        else:
+            frequency_dict[element] = 1
+    
+    sorted_frequency_tuples = sorted(frequency_dict.items(), key=lambda x: x[1], reverse=True)
+    return sorted_frequency_tuples
+
+def separate_odd_even_indices(arr):
+    odd_indices = [arr[i] for i in range(len(arr)) if i % 2 != 0]
+    even_indices = [arr[i] for i in range(len(arr)) if i % 2 == 0]
+    return odd_indices, even_indices    
+
+def main():
+    # Usage
+    #filename = 'cover1.jpg'
+    
+    worst_case = []
+    for i in range(0,256):
+        worst_case.append(i)
+        location_mask.append(0)
+    print(worst_case)
+    for n in range(1, 256):
+        factor_array = FactorArray(n)
+        factor_array.create_factor_array()
+        factor_array_list.append(factor_array)
+
+    n = 1000  # Example size of the random array
+    random_array = generate_random_array(n)
+    with open(filename, 'rb') as file:
+        random_array = file.read()
+    random_array = delta_encode(random_array)
+    
+    #random_array = worst_case
+    frequencies = calculate_frequencies(random_array)
+    
+    # Create a list of tuples (number, frequency) and sort it based on frequency in descending order
+    sorted_frequencies = sorted(enumerate(frequencies), key=lambda x: x[1], reverse=True)
+
+    fill_frequency(factor_array_list, sorted_frequencies)
+
+    """
+    # Print the frequencies in the factor arrays
+    for factor_array in factor_array_list:
+        print()
+        print(factor_array.factorable_numbers)
+        print(factor_array.freq)
+    print(sorted_frequencies)
+    """
+    factor_frequencies = calculate_factor_frequencies(random_array)
+
+    # Sort the factor frequencies dictionary by value (frequency) in descending order
+    sorted_factor_frequencies = sorted(factor_frequencies.items(), key=lambda x: x[1], reverse=True)
+    """
+        # Print the sorted factor frequency table
+    for factor, frequency in sorted_factor_frequencies:
+        print(f"Factor {factor}: {frequency} times")
+    """
+    #print(sorted_factor_frequencies)
+    
+    for factor_array in factor_array_list:
+        factor_array.get_bit_reduction()
+    print("Bit Reduced!")
+    #print(factor_array_list[1].get_factor_array_info())
+    sorted_factor_array_list = []
+    some_i = 100
+    for factor, frequency in sorted_factor_frequencies:
+        try:
+            #print(factor)
+            sorted_factor_array_list.append(factor_array_list[factor])
+            #print(factor_array_list[factor].n)
+        except:
+            pass
+    #print(sorted_factor_array_list[1].get_factor_array_info())
+    
+    # Get the size in bytes of the original file
+    
+    file_size = os.path.getsize(filename) #
+    #file_size = 256*8#os.path.getsize(filename) #
+    cmp_size = file_size - (factor_array_list[0].sort_properties()/8)
+    print(f"Original File Size: {file_size} bytes")
+    print(f"Compressed File Size: {cmp_size} bytes")
+    print(f"Compression Multiple: {file_size/cmp_size}x")
+    
+    print(location_mask)
+    
+    #Generating Partition Blocks = Factors/4
+    new_loc = []
+    loc_mask = []
+    state_changes = []
+    zeroes_found = 0
+    first_4 = factor_sequence[:4]
+    #print(factor_sequence[4:8])
+    for i in random_array:
+        new_loc.append(location_mask[i])
+    for i in new_loc:
+        if i in first_4:
+            loc_mask.append(1)
+            if i == 0:
+                zeroes_found += 1
+        else:
+            loc_mask.append(0)
+    
+    print("Factor Sequence", factor_sequence, len(factor_sequence))
+    print("\nFirst Partition\n")
+
+    print("First 4", first_4)
+    state_changes = count_state_changes(loc_mask)
+    
+    #Partition Size
+    state_freqs = count_frequencies(state_changes)
+    print(state_freqs)
+    odd_indices, even_indices = separate_odd_even_indices(state_changes)
+    print(sum(odd_indices), sum(even_indices))
+    state_freqs_values = []
+    for k,v in state_freqs:
+        state_freqs_values.append(v)
+    size = (sum(state_freqs_values[:3]) + sum(state_freqs_values[1:3]) + sum(state_freqs_values[2:3]) + sum(state_freqs_values[4:-1]) * (3 + 4))/8
+    print(size)
+    print(f'{size/file_size * 100}% of file')
+    #print(count_frequencies(random_array))
+    
+    
+    #2nd Partition
+    print("\nSecond Partition\n")
+    sec_partition = []
+    for i in range(len(loc_mask)):
+        if loc_mask[i] == 0:
+            sec_partition.append(new_loc[i])
+    
+    order = 2
+    loc_mask = []
+    state_changes = []
+    zeroes_found = 0
+    first_4 = factor_sequence[4*(order-1):4*order]
+    
+    for i in sec_partition:
+        if i in first_4:
+            loc_mask.append(1)
+            if i == 0:
+                zeroes_found += 1
+        else:
+            loc_mask.append(0)
+    
+    #print("Factor Sequence", factor_sequence, len(factor_sequence))
+    print("First 4", first_4)
+    state_changes = count_state_changes(loc_mask)
+    print(count_frequencies(state_changes))
+    #Partition Size
+    state_freqs = count_frequencies(state_changes)
+    print(state_freqs)
+    odd_indices, even_indices = separate_odd_even_indices(state_changes)
+    print(sum(odd_indices), sum(even_indices))
+    state_freqs_values = []
+    for k,v in state_freqs:
+        state_freqs_values.append(v)
+    size = (sum(state_freqs_values[:3]) + sum(state_freqs_values[1:3]) + sum(state_freqs_values[2:3]) + sum(state_freqs_values[4:-1]) * (3 + 4))/8
+    print(size)
+    print(f'{size/file_size * 100}% of file')
+    #print(count_frequencies(random_array))
+    
+    print()
+    """
+    # Define the start and end indices of the segment
+    start_index = 0
+    end_index = 1000
+
+    # Extract the segment of the array
+    segment = new_loc[start_index:end_index+1]
+
+    # Plot the segment
+    plt.scatter(range(len(segment)), segment)
+    plt.xlabel('Index')
+    plt.ylabel('Value')
+    plt.title('Segment of an Array')
+    plt.show()
+    """
+    """
+    import gzip
+    import pickle
+
+
+    # Compress and save the array to a file
+    with gzip.open('array.gz', 'wb') as f:
+        pickle.dump(new_loc, f)
+    #new_loc = delta_encode(new_loc)
+    frequencies = calculate_frequencies(new_loc)
+    
+    # Create a list of tuples (number, frequency) and sort it based on frequency in descending order
+    sorted_frequencies = sorted(enumerate(frequencies), key=lambda x: x[1], reverse=True)
+    
+    fill_frequency(factor_array_list, sorted_frequencies)
+
+    factor_frequencies = calculate_factor_frequencies(new_loc)
+
+    # Sort the factor frequencies dictionary by value (frequency) in descending order
+    sorted_factor_frequencies = sorted(factor_frequencies.items(), key=lambda x: x[1], reverse=True)
+
+    print(sorted_factor_frequencies)
+    
+    for factor_array in factor_array_list:
+        factor_array.get_bit_reduction()
+    print("Bit Reduced!")
+    #print(factor_array_list[1].get_factor_array_info())
+    sorted_factor_array_list = []
+    some_i = 100
+    for factor, frequency in sorted_factor_frequencies:
+        try:
+            #print(factor)
+            sorted_factor_array_list.append(factor_array_list[factor])
+            print(factor_array_list[factor].n)
+        except:
+            pass
+    #print(sorted_factor_array_list[1].get_factor_array_info())
+    
+    # Get the size in bytes of the original file
+    
+    
+    file_size = os.path.getsize(filename) #
+    #file_size = 256*8#os.path.getsize(filename) #
+    cmp_size = file_size - (factor_array_list[0].sort_properties()/8)
+    print(f"Original File Size: {file_size} bytes")
+    print(f"Compressed File Size: {cmp_size} bytes")
+    print(f"Compression Multiple: {file_size/cmp_size}x")
+    
+    #compute(compute(compute(random_array)))
+    
+    new_loc_2 = []
+    
+    for i in new_loc:
+        new_loc_2.append(location_mask[i])
+    #new_loc = delta_encode(new_loc)
+    frequencies = calculate_frequencies(new_loc_2)
+    
+    # Create a list of tuples (number, frequency) and sort it based on frequency in descending order
+    sorted_frequencies = sorted(enumerate(frequencies), key=lambda x: x[1], reverse=True)
+    
+    fill_frequency(factor_array_list, sorted_frequencies)
+
+    factor_frequencies = calculate_factor_frequencies(new_loc_2)
+
+    # Sort the factor frequencies dictionary by value (frequency) in descending order
+    sorted_factor_frequencies = sorted(factor_frequencies.items(), key=lambda x: x[1], reverse=True)
+
+    print(sorted_factor_frequencies)
+    
+    for factor_array in factor_array_list:
+        factor_array.get_bit_reduction()
+    print("Bit Reduced!")
+    #print(factor_array_list[1].get_factor_array_info())
+    sorted_factor_array_list = []
+    some_i = 100
+    for factor, frequency in sorted_factor_frequencies:
+        try:
+            #print(factor)
+            sorted_factor_array_list.append(factor_array_list[factor])
+            print(factor_array_list[factor].n)
+        except:
+            pass
+    #print(sorted_factor_array_list[1].get_factor_array_info())
+    
+    # Get the size in bytes of the original file
+    
+    
+    file_size = os.path.getsize(filename) #
+    #file_size = 256*8#os.path.getsize(filename) #
+    cmp_size = file_size - (factor_array_list[0].sort_properties()/8)
+    print(f"Original File Size: {file_size} bytes")
+    print(f"Compressed File Size: {cmp_size} bytes")
+    print(f"Compression Multiple: {file_size/cmp_size}x")
+    
+    compute(compute(compute(new_loc_2)))
+    #compute(compute(compute(random_array)))
+    #compute(compute(compute(random_array)))
+    """
 if __name__ == "__main__":
     main()
 
